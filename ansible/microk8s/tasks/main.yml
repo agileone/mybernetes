@@ -19,7 +19,28 @@
     name: microk8s
     classic: yes
     state: present
-    channel: 1.25/stable
+    channel: 1.27/stable
+
+- name: Get tailscale IP addr
+  # when: inventory_hostname in groups["leader"]
+  shell: "tailscale ip | grep 100 | head -n1"
+  register: ts_ip_address
+  changed_when: false
+
+- name: Update the kube-proxy file with TAILSCALE
+  when: inventory_hostname not in groups["ha-cluster"]
+  tags: kuprupdate
+  become: yes
+  become_user: root
+  lineinfile:
+    dest: "/var/snap/microk8s/current/args/kube-proxy"
+    # regexp: ".*\t{{ hostvars[item]['name']}}\t{{ hostvars[item]['name']}}"
+    line: "--bind-address={{ ts_ip_address }}"
+    state: present
+    backup: yes
+  register: kuprupdate
+  # when: inventory_hostname != "{{ item }}" or inventory_hostname == "{{ item }}"
+  # with_items: "{{groups['local_addresses']}}"
 
 - name: Install jq
   apt:
